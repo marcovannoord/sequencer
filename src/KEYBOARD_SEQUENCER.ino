@@ -15,22 +15,23 @@ const uint8_t OUTPUT_STEPS{16};
 #define STEP6 7
 #define STEP7 8
 #define STEP8 9
-#define STEP9 14
-#define STEP10 15
-#define STEP11 16
-#define STEP12 17
-#define STEP13 18
-#define STEP14 19
-#define STEP15 21
-#define STEP16 20
+#define STEP9 A0
+#define STEP10 A1
+#define STEP11 A2
+#define STEP12 A3
+#define STEP13 A4
+#define STEP14 A5
+#define STEP15 13
+#define STEP16 0 // TX pin, since we won't use Serial input
 
 // Put the pins in an array, so we can loop through them later on
 const uint8_t stepPins[16] = {STEP1, STEP2, STEP3, STEP4, STEP5, STEP6, STEP7, STEP8, STEP9, STEP10, STEP11, STEP12, STEP13, STEP14, STEP15, STEP16};
 
 // Pins used as inputs
-#define CLOCK_PIN 12
 #define RESET_PIN 10
 #define REVERSE_PIN 11
+#define CLOCK_PIN 12
+// Unused pin: RX(1)
 
 
 uint8_t forward_clock_level = LOW;
@@ -46,6 +47,8 @@ bool direction_forward = true; // Should we go forward? (or reverse)
 
 void setup()
 {
+
+  // Warning: do not use Serial, since it prevents output STEP16 from working correctly
   // Set all step outputs to OUTPUT mode
   for (size_t i = 0; i < OUTPUT_STEPS; i++)
   {
