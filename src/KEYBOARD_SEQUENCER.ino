@@ -1,19 +1,10 @@
-//LOOK MUM NO COMPUTER KEYBOARD SEQUENCER. A SIMPLE DESIGN TO MAKE A 4017 STYLE SEQUENCER WITH MORE ADDED FUNCTIONS.
-//MORE INFO CHECK LOOKMUMNOCOMPUTER.COM
-//PLEASE EMAIL ME COMPUTER@LOOKMUMNOCOMPUTER.COM OR LOOKMUMNOCOMPUTER@GMAIL.COM IF ANY QUESTIONS
-//ANY MODIFICATIONS PLEASE LET ME KNOW AND I CAN FEATURE ON THE WEBSITE
-//OPEN SOURCE. DONT USE IN A PRODUCT OR WHATEVER WITHOUT TALKING TO ME
-//SAM BATTLE 2017
-//BOOM
-
-//ALSO TO ADD! I HAVE MADE THIS CODE IN A WAY ITS EASY TO UNDERSTAND FOR A NONE CODER (LIKE MYSELF)
-//I REMEMBER WHEN I STARTED ON ARDUINO BEING LIKE WHAT THE HELL IS GOING ON.
-//SO IVE LAYED IT OUT LOGICALLY, SEINSE IT ISNT A COMPLICATED PROGRAM I FIGURED WHY THE HECK NOT!
-
-//SO YES THIS ISNT THE BEST WAY OF GOING ABOUT THIS HOWEVER IT IS THE EASIEST TO UNDERSTAND
-//FOR A NONE CODER MIND.
+// Arduino Nano sequencer
+// By Marco van Noord
+// Copyright (C) Van Noord Engineering - 2019 
 
 #include "Arduino.h"
+
+// Amount of outputs - or steps - the system has
 const uint8_t OUTPUT_STEPS{16};
 // Below, define the pin outputs that we use for each step.
 #define STEP1 2
@@ -32,45 +23,26 @@ const uint8_t OUTPUT_STEPS{16};
 #define STEP14 19
 #define STEP15 21
 #define STEP16 20
-const uint8_t stepPins[16] = {STEP1, STEP2, STEP3, STEP4, STEP5, STEP6, STEP7, STEP8, STEP9, STEP10, STEP11, STEP12,STEP13, STEP14, STEP15, STEP16}
 
-#define FORWARD_CLOCK_PIN  12
-#define RESET 10
+// Put the pins in an array, so we can loop through them later on
+const uint8_t stepPins[16] = {STEP1, STEP2, STEP3, STEP4, STEP5, STEP6, STEP7, STEP8, STEP9, STEP10, STEP11, STEP12, STEP13, STEP14, STEP15, STEP16};
 
-//ABOVE BASICALLY DEFINES THE NAMES OF THE PINS, PLEASE REMEMBER THE ANALOG PINS A0,A1,A2, BLAH BLAH CAN BE USED AS DIGITAL PINS. THE ARE
-//DIGITAL 14 and UP!
+// Pins used as inputs
+#define CLOCK_PIN 12
+#define RESET_PIN 10
+#define REVERSE_PIN 11
 
-int val = 0;
-int old_val = 0;
-int val1 = 0;
-int old_val1 = 0;
-int val2 = 0;
-int old_val2 = 0;
-int val3 = 0;
-int old_val3 = 0;
-int val4 = 0;
-int old_val4 = 0;
 
-int vals1 = 0;
-int old_vals1 = 0;
-int vals2 = 0;
-int old_vals2 = 0;
-int vals3 = 0;
-int old_vals3 = 0;
-int vals4 = 0;
-int old_vals4 = 0;
-int vals5 = 0;
-int old_vals5 = 0;
-int vals6 = 0;
-int old_vals6 = 0;
-int vals7 = 0;
-int old_vals7 = 0;
-int vals8 = 0;
-int old_vals8 = 0;
+uint8_t forward_clock_level = LOW;
+uint8_t previous_forward_clock_level = LOW;
 
-int state = 0;
-int led = 17;
-int newled = 1;
+uint8_t reset_level = LOW;
+uint8_t previous_reset_level = LOW;
+
+// keeps track on which output should be active at the moment.
+// output "0" does not exist, meaning that no output will be active at that moment
+uint8_t output_number = 0;
+bool direction_forward = true; // Should we go forward? (or reverse)
 
 void setup()
 {
@@ -79,78 +51,59 @@ void setup()
   {
     pinMode(stepPins[i], OUTPUT);
   }
-  pinMode(FORWARD_CLOCK_PIN, INPUT);
-  // pinMode(BACK, INPUT);
-  pinMode(RESET, INPUT);
-  // pinMode(ZERO, INPUT);
-
-  //SET THE PINS TO IN OR OUT
+  pinMode(CLOCK_PIN, INPUT);
+  pinMode(RESET_PIN, INPUT);
+  pinMode(REVERSE_PIN, INPUT);
 }
 
 void loop()
 {
-  // If the forward clock has been changed
-  forward_clock_level = digitalRead(FORWARD_CLOCK);
+  direction_forward = digitalRead(REVERSE_PIN); // Read and set the direction from the switch
+
+  // If the forward clock has been changed (level is high)
+  forward_clock_level = digitalRead(CLOCK_PIN);
   if ((forward_clock_level == HIGH) && (previous_forward_clock_level == LOW))
   {
-    newled = led - 1;
-    if (newled <= 8)
-    {
-      newled = 16;
+    if (direction_forward) // if we go forwards
+    { // Then step forward and check if we are within bounds
+      if (++output_number > OUTPUT_STEPS)
+      {
+        output_number = 1; // and reset back to the start when we arent't
+      }
     }
-    led = newled;
-  }
-
-  //THIS IS THE THING THAT MAKES IT GO FORWARD_CLOCK, IT SAYS -1 YOULL SEE ALL OF THE NUMBERS AND WHAT THEY DO BELOW
-
-  val2 = digitalRead(ZERO);
-  if ((val2 == HIGH) && (old_val2 == LOW))
-
-  {
-    newled = led = 17;
-    led = newled;
-  }
-
-  //THIS MAKES THE ZERO COMMAND WORK. 17 IS WHEN NO LIGHTS ARE ON
-
-  val3 = digitalRead(RESET);
-  if ((val3 == HIGH) && (old_val3 == LOW))
-
-  {
-    newled = led = 16;
-    led = newled;
-  }
-
-  //RESET BACK TO STEP 1
-
-  val4 = digitalRead(BACK);
-  if ((val4 == HIGH) && (old_val4 == LOW))
-
-  {
-    newled = led + 1;
-    if (newled >= 17)
+    else // else we are going backwards
     {
-      newled = 9;
+      if (--output_number < 1) // Then check if we arrived at the start of the sequence
+      {
+        output_number = OUTPUT_STEPS; // If so, reset to the end of the sequence
+      }
     }
-    led = newled;
   }
+  previous_forward_clock_level = forward_clock_level; // store the state
 
-  //GO BACKWARDS
+  // Reset logic: when high, start aat the first step output.
+  reset_level = digitalRead(RESET_PIN);
+  if ((reset_level == HIGH) && (previous_reset_level == LOW))
 
-  //BELOW ARE ALL OF THE STEP BUTTONS AND WHAT THEY DO. BASICALLY WHEN THEY ARE HIT THE LED NUMBER GOES TO THE RIGHT NUMBER
-
-  old_val = val;
-  old_val1 = val1;
-  old_val2 = val2;
-  old_val3 = val3;
-  old_val4 = val4;
-
-  if (newled >= 17)
   {
-    newled = 9;
+    output_number = 1;
   }
-  if (newled <= 8)
+  previous_reset_level = reset_level; // store the state
+
+  // Now enable the correct output
+  enable_single_output(output_number);
+}
+void enable_single_output(uint8_t output)
+{
+  for (size_t i = 1; i <= OUTPUT_STEPS; i++) // loop from 1 through 16 (steps)
   {
-    newled = 16;
+    if (i == output)
+    {
+      digitalWrite(stepPins[i - 1], HIGH); // i-1 since the array is zero-based
+    }
+    else
+    {
+      digitalWrite(stepPins[i - 1], LOW);
+    }
   }
 }
